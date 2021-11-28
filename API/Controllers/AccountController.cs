@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using API.Data;
 using API.DTOs;
 using API.Entities;
+using DTOs;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -18,6 +19,23 @@ namespace API.Controllers
         {
             _context = context;
         }
+        [HttpPost("login")]
+        public async Task<ActionResult<AppUser>> Login(LoginRequest request)
+        {
+            AppUser user = await _context.Users.FirstOrDefaultAsync(x => x.UserName.Equals(request.UserName.ToLower()));
+
+            if(user == null) return Unauthorized("User does not exists");
+
+            using var hmac = new HMACSHA512(user.PasswordSalt);
+            var passwordHash = hmac.ComputeHash(Encoding.UTF8.GetBytes(request.Password));
+
+            for(int i = 0; i < passwordHash.Length; i++) 
+            {
+                if(passwordHash[i] != user.PasswordHash[i]) return Unauthorized("Invalid password");
+            }
+
+            return user;
+        } 
 
         [HttpPost("register")]
         public async Task<ActionResult<AppUser>> Register([FromBody] RegisterRequest request)
